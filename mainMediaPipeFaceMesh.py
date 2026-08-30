@@ -133,6 +133,10 @@ while True:
                     CALIB_PHASE = "CLOSE"
                     calib_start = time.time()
 
+                    if len(open_sample1) == 0 or len(open_sample2) == 0:
+                        print("Calibration has failed, there is no face detected. Restart the program !")
+                        exit()
+
                     average_open_EAR_1 = sum(open_sample1) / len(open_sample1)
                     average_open_EAR_2 = sum(open_sample2) / len(open_sample2)
 
@@ -145,6 +149,10 @@ while True:
 
                 if remaining <= 0:
                     APP_STATE = "RUNNING"
+
+                    if len(close_sample1) == 0 or len(close_sample2):
+                        print("Calibration has failed, there is no face detected or both close eyes. Restart the program !")
+                        exit()
 
                     average_close_EAR_1 = sum(close_sample1) / len(close_sample1)
                     average_close_EAR_2 = sum(close_sample2) / len(close_sample2)
