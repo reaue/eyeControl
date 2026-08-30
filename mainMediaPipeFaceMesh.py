@@ -10,6 +10,8 @@ from mediapipe.tasks.python import vision
 from PyQt6.QtWidgets import QApplication, QWidget 
 from PyQt6.QtGui import QPainter, QColor, QGuiApplication 
 from PyQt6.QtCore import Qt 
+import numpy as np
+import pyautogui
 
 
 EAR_1_threshold, EAR_2_threshold = 0.15, 0.15      
@@ -32,9 +34,21 @@ open_sample2 = []
 CALIBRATING_DURATION = 5 # [s]
 TRACKING_DURATION = 3 # [s]
 point_count = 0
-
 close_sample1 = []
 close_sample2 = []
+
+gaze_x = []
+gaze_y = []
+
+current_gaze_x = []
+current_gaze_y = []
+
+a_x = b_x = a_y = b_y = None
+
+recent_screen_x = []
+recent_screen_y = []
+SMOOTH_WINDOW = 5
+
 
 app = QApplication(sys.argv)
 screen_size = QGuiApplication.primaryScreen().geometry()
@@ -111,21 +125,28 @@ def to_px(landmarks, idx):
 
 
 def draw_eye(img, landmarks):
-    left_iris = [469, 470, 471, 472]
-    right_iris = [474, 475, 476, 477]
+    iris_1 = [469, 470, 471, 472]
+    iris_2 = [474, 475, 476, 477]
 
     for i in range(4):
-        img = cv.line(img, to_px(landmarks, left_iris[i]), to_px(landmarks, left_iris[(i+1) % 4]), red, 1)
-        img = cv.line(img, to_px(landmarks, right_iris[i]), to_px(landmarks, right_iris[(i+1) % 4]), red, 1)
+        img = cv.line(img, to_px(landmarks, iris_1[i]), to_px(landmarks, iris_1[(i+1) % 4]), red, 1)
+        img = cv.line(img, to_px(landmarks, iris_2[i]), to_px(landmarks, iris_2[(i+1) % 4]), red, 1)
 
-    cv.putText(img, "eye_1", (to_px(landmarks, left_iris[1])[0]-10, to_px(landmarks, left_iris[1])[1]-5), cv.FONT_HERSHEY_SIMPLEX, 0.4, red, 2)
-    cv.putText(img, "eye_2", (to_px(landmarks, right_iris[1])[0]-10, to_px(landmarks, right_iris[1])[1]-5), cv.FONT_HERSHEY_SIMPLEX, 0.4, red, 2)
+    cv.putText(img, "eye_1", (to_px(landmarks, iris_1[1])[0]-10, to_px(landmarks, iris_1[1])[1]-5), cv.FONT_HERSHEY_SIMPLEX, 0.4, red, 2)
+    cv.putText(img, "eye_2", (to_px(landmarks, iris_2[1])[0]-10, to_px(landmarks, iris_2[1])[1]-5), cv.FONT_HERSHEY_SIMPLEX, 0.4, red, 2)
 
     return img
 
 
 def eye_aspect_ratio(p1, p2, p3, p4, p5, p6):
     return (math.dist(list(p2), list(p6))+(math.dist(list(p3), list(p5))))/(2 * math.dist(list(p1), list(p4)))
+
+
+def gaze(p1, p2, p3): # varies between 0 and 1
+    denom = p3 - p2
+    if denom == 0:
+        return 0.5 # 0.5 is a neutral value
+    return (p1 - p2) / denom
 
 
 need_calibrating_EAR = input("Do you want to calibrate your EAR (Y or N) : ")
@@ -238,17 +259,36 @@ while True:
                     overlay.set_point(point_coord[point_count])
                     cv.putText(frame, "Look at the red point on your screen", (30, 30), cv.FONT_HERSHEY_SIMPLEX, 0.7, red, 2)
 
+                    gx = (gaze(to_px(r, 468)[0], to_px(r, 133)[0], to_px(r, 33)[0]) + gaze(to_px(r, 473)[0], to_px(r, 362)[0], to_px(r, 263)[0])) / 2
+                    gy = (gaze(to_px(r, 468)[1], to_px(r, 145)[1], to_px(r, 159)[1]) + gaze(to_px(r, 473)[1], to_px(r, 374)[1], to_px(r, 386)[1])) / 2
+                    current_gaze_x.append(gx)
+                    current_gaze_y.append(gy)
+
                 if point_count == 0 and (time.time() - timer_tracking) >= CALIBRATING_DURATION:
                     timer_tracking = time.time()
                     point_count += 1
+                    gaze_x.append(sum(current_gaze_x) / len(current_gaze_x))
+                    gaze_y.append(sum(current_gaze_y) / len(current_gaze_y))
+                    current_gaze_x, current_gaze_y = [], []
 
                 elif point_count < 5 and point_count != 0 and (time.time() - timer_tracking) >= TRACKING_DURATION:
                     timer_tracking = time.time()
                     point_count += 1
 
+                    gaze_x.append(sum(current_gaze_x) / len(current_gaze_x))
+                    gaze_y.append(sum(current_gaze_y) / len(current_gaze_y))
+                    current_gaze_x, current_gaze_y = [], []
+
                 elif point_count == 5:
                     overlay.hide()
                     APP_STATE = "RUNNING"
+
+                    screen_xs = [pc[0] for pc in point_coord]
+                    screen_ys = [pc[1] for pc in point_coord]
+                    a_x, b_x = np.polyfit(gaze_x, screen_xs, 1)
+                    a_y, b_y = np.polyfit(gaze_y, screen_ys, 1)
+                    print(f"a_x={a_x}, b_x={b_x}, a_y={a_y}, b_y={b_y}")
+                    
 
     else:
         # result.face_landmarks is a list of 478 points of detected visage
@@ -258,6 +298,21 @@ while True:
 
             EAR_1 = eye_aspect_ratio(to_px(r, 33), to_px(r, 160), to_px(r, 158), to_px(r, 133), to_px(r, 153), to_px(r, 144))
             EAR_2 = eye_aspect_ratio(to_px(r, 263), to_px(r, 385), to_px(r, 387), to_px(r, 362), to_px(r, 373), to_px(r, 380))
+
+            if a_x is not None:
+                gx = (gaze(to_px(r, 468)[0], to_px(r, 133)[0], to_px(r, 33)[0]) + gaze(to_px(r, 473)[0], to_px(r, 362)[0], to_px(r, 263)[0])) / 2
+                gy = (gaze(to_px(r, 468)[1], to_px(r, 145)[1], to_px(r, 159)[1]) + gaze(to_px(r, 473)[1], to_px(r, 374)[1], to_px(r, 386)[1])) / 2 
+
+                screen_x = a_x * gx + b_x
+                screen_y = a_y * gy + b_y
+
+                recent_screen_x.append(screen_x)
+                recent_screen_y.append(screen_y)
+                if len(recent_screen_x) > SMOOTH_WINDOW:
+                    recent_screen_x.pop(0)
+                    recent_screen_y.pop(0)
+
+                pyautogui.moveTo(sum(recent_screen_x) / len(recent_screen_x), sum(recent_screen_y) / len(recent_screen_y))
 
             closed_1 = EAR_1 < EAR_1_threshold
             closed_2 = EAR_2 < EAR_2_threshold
