@@ -1,7 +1,7 @@
 # eyeControl
  
-A webcam-based blink detector that tells left-eye, right-eye, and dual blinks apart in real time — the first building block of a hands-free, blink-driven control interface.
- 
+A webcam-based blink detector that tells left-eye, right-eye, and dual blinks apart in real time — Used in a game driven by blinking eyes
+
 <!-- TODO: add a GIF or screenshot here showing the webcam window with the eye contours and a live blink being detected. This is the single highest-impact thing missing from this README right now — a wall of text with no visual loses most readers in the first few seconds. Screen-record a 5-10 second clip of a blink triggering a console print, convert to GIF (ScreenToGif or ezgif.com works fine), drop it in the repo, and reference it here: -->
 <!-- ![demo](./demo.gif) -->
  
@@ -12,11 +12,11 @@ No hosted demo — this needs a physical webcam, so it runs locally. See Quick s
 ## Quick start
  
 ```
-pip install mediapipe opencv-python
-python mainMediaPipeFaceMesh.py
+pip install mediapipe opencv-python pygame
+python EyeDash.py
 ```
  
-Answer `Y` at the prompt to calibrate the EAR thresholds on your own eyes (10 seconds), or `N` to use the defaults. Press `q` to quit.
+Answer `YES, CALIBRATE` at the question to calibrate the EAR thresholds on your own eyes (10 seconds), or `NO, PLAY DIRECTLY` to use the defaults.
  
 ## Features
  
@@ -33,7 +33,7 @@ Answer `Y` at the prompt to calibrate the EAR thresholds on your own eyes (10 se
 - No environment variables or config files needed.
 Start command:
 ```
-python mainMediaPipeFaceMesh.py
+python EyeDash.py
 ```
  
 Note: `cv.VideoCapture(0, cv.CAP_DSHOW)` is Windows-specific. On macOS/Linux, drop the `cv.CAP_DSHOW` flag.
@@ -46,9 +46,8 @@ Classifying *which* eye blinked (not just *that* a blink happened) is what makes
  
 ## Roadmap
  
-- [ ] Formal validation of the false-positive rate (a stated precondition before adding more features)
-- [ ] Generalize double-blink detection into a sliding-window approach instead of the current ad hoc same-eye timing check
-- [ ] Map blink sequences (2, 3, 5 blinks) to actual commands — the actual "control interface" part
+- [ ] create the game and link the game controls.
+- [ ] add nice UI
 ## Credits
  
 Built with [MediaPipe](https://ai.google.dev/edge/mediapipe) (Google) and [OpenCV](https://opencv.org/).
