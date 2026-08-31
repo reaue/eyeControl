@@ -24,7 +24,6 @@ Answer `YES, CALIBRATE` at the question to calibrate the EAR thresholds on your 
 - Real-time blink detection from a live webcam feed using MediaPipe Face Landmarker (478 facial landmarks).
 - Per-eye Eye Aspect Ratio (EAR) computation — detects each eye independently rather than treating "eyes" as one signal.
 - Distinguishes dual blinks (both eyes) from single-eye blinks (left or right only).
-- Detects rapid double-blinks (< 1 second apart) on the same eye.
 - Optional personal calibration: 5 seconds eyes-open + 5 seconds eyes-closed to compute a threshold tailored to your own eye shape, instead of a fixed value.
 ## Running it locally
  

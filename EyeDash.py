@@ -67,6 +67,8 @@ font_button = pygame.font.Font('freesansbold.ttf', 14)
 font_footer = pygame.font.Font('freesansbold.ttf', 11)
 font_timer = pygame.font.Font('freesansbold.ttf', 48)
 
+BAND_HEIGHT = 16
+
 clock = pygame.time.Clock()
 running = True
 
@@ -85,11 +87,71 @@ DARK = (8, 7, 17)
 PINK = (255, 0, 110)
 BORDER = (45, 40, 80)
 
+GROUND_TOP = pygame.Color(CYAN_HOVER)
+GROUND_BOTTOM = pygame.Color(0, 0, 0)
+
 # UI rectangles
 
 main_card = pygame.Rect(24, 144, 826, 235)
 button_calibrating = pygame.Rect(392, 172, 221, 52)
 button_not_calibrating = pygame.Rect(621, 172, 221, 52)
+
+x_player = 100
+y_player = 252
+size = 48
+player_rect = pygame.Rect(x_player, y_player, size, size)
+
+GRAVITY = 1
+JUMP_VELOCITY = -17
+GROUND_Y = 300
+
+velocity_y = 0
+
+IS_JUMP_TRIGGERED = False
+standing_on = None
+
+# Idea : increase the speed during the game to make it harder
+
+class Obstacle():
+    def __init__(self, x, y, speed):
+        self.x = x
+        self.y = y
+        self.speed = speed
+
+    def update(self):
+        self.x -= self.speed
+
+
+class Spike(Obstacle):
+    def __init__(self, x, y, size, speed=7):
+        super().__init__(x, y, speed)
+        self.size = size
+
+    def draw(self, screen):
+        points = [(self.x, self.y + self.size), (self.x + self.size, self.y + self.size), (self.x + self.size / 2, self.y)]
+        pygame.draw.polygon(screen, PINK, points)
+        pygame.draw.polygon(screen, WHITE, points, width=3)
+
+    @property
+    def rect(self):
+        return pygame.Rect(self.x, self.y, self.size, self.size)
+
+
+class Block(Obstacle):
+    def __init__(self, x, y, size, speed=7):
+        super().__init__(x, y, speed)
+        self.size =size
+        self.rect = pygame.Rect(x, y, size, size)
+
+    def update(self):
+        super().update()
+        self.rect.x = self.x
+
+    def draw(self, screen):
+        pygame.draw.rect(screen, PINK, self.rect)
+        pygame.draw.rect(screen, WHITE, self.rect, width=3)
+
+obstacles = [Spike(500, GROUND_Y - size, size), Block(800, GROUND_Y - size, size), Block(848, GROUND_Y - size, size), Block(896, GROUND_Y - size, size), Block(944, GROUND_Y - size, size), Block(1088, GROUND_Y - 2 * size, size), Block(1136, GROUND_Y - 2 * size, size)]
 
 
 def EAR_threshold_calculate(open_EAR, close_EAR):
@@ -134,6 +196,12 @@ def draw_closed_eye(surface, center):
     pygame.draw.line(surface, PINK, (cx - 5, cy + 7), (cx - 7, cy + 18), width=2)
     pygame.draw.line(surface, PINK, (cx + 5, cy + 7), (cx + 7, cy + 18), width=2)
     pygame.draw.line(surface, PINK, (cx + 13, cy + 2), (cx + 18, cy + 12), width=2)
+
+
+def draw_ground(display, top=GROUND_TOP, bottom=GROUND_BOTTOM):
+    for y in range(0, (431-300), BAND_HEIGHT):
+        colour = top.lerp(bottom, y / 431 * 2)
+        display.fill(colour, (0, y + 300, 874, 431))
 
 
 # Frame decomposition from a video feed
@@ -354,8 +422,65 @@ while running:
 
 
         else:
+            draw_ground(screen)
+
+            if APP_STATE != "GAME OVER":
+                if standing_on is not None:
+                    still_supported = (player_rect.right > standing_on.rect.left and
+                                        player_rect.left < standing_on.rect.right)
+                    if still_supported:
+                        y_player = standing_on.rect.top - size
+                        velocity_y = 0
+                        if IS_JUMP_TRIGGERED:
+                            velocity_y = JUMP_VELOCITY
+                            standing_on = None
+                            IS_JUMP_TRIGGERED = False
+                    else:
+                        standing_on = None
+
+                if standing_on is None:
+                    prev_bottom = y_player + size
+                    
+                    if IS_JUMP_TRIGGERED and y_player + size == GROUND_Y:
+                        velocity_y = JUMP_VELOCITY
+                        IS_JUMP_TRIGGERED = False
+
+                    if y_player + size < GROUND_Y or velocity_y != 0:
+                        prev_bottom = y_player + size
+                        velocity_y += GRAVITY
+                        y_player += velocity_y
+
+                        if y_player + size >= GROUND_Y:
+                            y_player = GROUND_Y - size
+                            velocity_y = 0
+
+                player_rect.y = y_player
+                pygame.draw.rect(screen, CYAN, (x_player, y_player, size, size), width=3)
+
+                for obstacle in obstacles:
+                    obstacle.update()
+                    obstacle.draw(screen)
+
+                    if standing_on is None and player_rect.colliderect(obstacle.rect):
+                        if isinstance(obstacle, Spike):
+                            APP_STATE = "GAME OVER"
+                        elif velocity_y >= 0 and prev_bottom <= obstacle.rect.top + 4:
+                            y_player = obstacle.rect.top - size
+                            velocity_y = 0
+                            player_rect.y = y_player
+                            standing_on = obstacle
+                        else:
+                            APP_STATE = "GAME OVER"
+
+                obstacles = [o for o in obstacles if o.x > -2 * size]
+
+            else:
+                for obstacle in obstacles:
+                    obstacle.draw(screen) 
+
+
+            if APP_STATE != "GAME OVER" and result.face_landmarks:
             # result.face_landmarks is a list of 478 points of detected visage
-            if result.face_landmarks:
                 r = result.face_landmarks[0]
                 frame = draw_eye(frame, r)
 
@@ -380,26 +505,26 @@ while running:
                             if ratio > RATIO_THRESHOLD:
                                 dual_blinking += 1
                             elif frames_closed_1 > frames_closed_2:
-                                if only_eye1_blinking == 1 and (time.time() - time_start_eye1) < 1:
-                                    only_eye1_blinking += 1
-                                    print("Double1")
-                                    only_eye1_blinking = 0
-                                else:
-                                    only_eye1_blinking = 1
-                                time_start_eye1 = time.time()
+                                only_eye1_blinking += 1
+                                IS_JUMP_TRIGGERED = True
                             else:
-                                if only_eye2_blinking == 1 and (time.time() - time_start_eye2) < 1:
-                                    only_eye2_blinking += 1
-                                    print("Double2")
-                                    only_eye2_blinking = 0
-                                else:
-                                    only_eye2_blinking = 1
-                                time_start_eye2 = time.time()
+                                only_eye2_blinking += 1
+                                IS_JUMP_TRIGGERED = True
 
                     event_active = False
                     frames_closed_1 = 0
                     frames_closed_2 = 0
 
+            if APP_STATE == "GAME OVER":
+                overlay = pygame.Surface((874, 431), pygame.SRCALPHA)
+                overlay.fill((0, 0, 0, 160))
+                screen.blit(overlay, (0, 0))
+
+                text_GO = font_title.render("GAME OVER", True, PINK)
+                screen.blit(text_GO, text_GO.get_rect(center=(437, 190)))
+
+                text_restart = font_question.render("Press R to restart", True, WHITE)
+                screen.blit(text_restart, text_restart.get_rect(center=(437, 240)))
 
     # Press X on top right of the window to quit the pygame window
     for event in pygame.event.get():
@@ -414,7 +539,16 @@ while running:
                 APP_STATE = "RUNNING"
                 FIRST_QUESTION = False
                 start_time = time.time()
-
+        elif event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_SPACE and (standing_on or player_rect.y == GROUND_Y - size):
+                IS_JUMP_TRIGGERED = True
+            elif event.key == pygame.K_r:
+                y_player = 252
+                velocity_y = 0
+                IS_JUMP_TRIGGERED = False
+                standing_on = None
+                obstacles = [Spike(500, GROUND_Y - size, size), Block(800, GROUND_Y - size, size), Block(848, GROUND_Y - size, size), Block(896, GROUND_Y - size, size), Block(944, GROUND_Y - size, size), Block(1088, GROUND_Y - 2 * size, size), Block(1136, GROUND_Y - 2 * size, size)]
+                APP_STATE = "RUNNING"
 
     pygame.display.flip()
     clock.tick(60) # limits FPS to 60
