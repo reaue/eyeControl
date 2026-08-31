@@ -420,6 +420,7 @@ while running:
             elif event.button == 1 and button_not_calibrating.collidepoint(event.pos):
                 APP_STATE = "RUNNING"
                 FIRST_QUESTION = False
+                start_time = time.time()
 
 
     pygame.display.flip()
