@@ -110,7 +110,6 @@ velocity_y = 0
 IS_JUMP_TRIGGERED = False
 standing_on = None
 
-# Idea : increase the speed during the game to make it harder
 
 class Obstacle():
     def __init__(self, x, y, speed):
