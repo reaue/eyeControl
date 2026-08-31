@@ -1,0 +1,351 @@
+import mediapipe as mp
+import cv2 as cv
+import time
+import math
+import pygame
+# MediaPipe tasks provides prebuilt libraries for different languages like Python, Java, ...
+from mediapipe.tasks import python
+# MediaPipe Tasks provides three prebuilt libraries: vision, text and audio
+from mediapipe.tasks.python import vision
+
+
+FIRST_QUESTION = True
+EAR_1_threshold, EAR_2_threshold = 0.15, 0.15      
+RATIO_THRESHOLD = 0.5     # If the secondary eye still close more than 50% the time of the first -> dual
+MIN_EVENT_FRAMES = 2      # Skip short blinking during only a frame
+red = (0, 0, 255)
+k = 0.75
+
+event_active = False
+frames_closed_1 = 0
+frames_closed_2 = 0
+
+dual_blinking = 0
+only_eye1_blinking = 0
+only_eye2_blinking = 0
+time_start_eye1 = 0
+time_start_eye2 = 0
+
+CALIB_PHASE = "OPEN"
+open_sample1 = []
+open_sample2 = []
+CALIBRATING_DURATION = 5 # [s]
+remaining = CALIBRATING_DURATION
+
+close_sample1 = []
+close_sample2 = []
+
+model_path = "face_landmarker.task"
+
+
+base_options = python.BaseOptions(model_asset_path=model_path)
+
+options = vision.FaceLandmarkerOptions(
+    base_options=base_options,
+    running_mode=vision.RunningMode.VIDEO,
+    num_faces=1,
+    min_face_detection_confidence=0.5,
+    min_face_presence_confidence=0.5,
+    min_tracking_confidence=0.5,
+    output_face_blendshapes=False,
+    output_facial_transformation_matrixes=False,
+)
+
+landmarker = vision.FaceLandmarker.create_from_options(options)
+
+
+pygame.init()
+screen = pygame.display.set_mode((874, 431))
+pygame.display.set_caption("Game Controlled by eyes blinking !")
+
+font = pygame.font.Font('freesansbold.ttf', 16)
+font_title = pygame.font.Font('freesansbold.ttf', 32)
+font_subtitle = pygame.font.Font('freesansbold.ttf', 14)
+font_question = pygame.font.Font('freesansbold.ttf', 18)
+font_description = pygame.font.Font('freesansbold.ttf', 13)
+font_button = pygame.font.Font('freesansbold.ttf', 14)
+font_footer = pygame.font.Font('freesansbold.ttf', 11)
+
+clock = pygame.time.Clock()
+running = True
+
+# UI colours
+
+BACKGROUND = (8, 7, 17)
+CARD_BACKGROUND = (18, 15, 36)
+
+CYAN = (0, 240, 255)
+CYAN_HOVER = (0, 200, 220)
+
+WHITE = (245, 245, 250)
+GREY = (155, 150, 185)
+DARK = (8, 7, 17)
+
+PINK = (255, 0, 110)
+BORDER = (45, 40, 80)
+
+# UI rectangles
+
+main_card = pygame.Rect(24, 144, 826, 235)
+button_calibrating = pygame.Rect(392, 172, 221, 52)
+button_not_calibrating = pygame.Rect(621, 172, 221, 52)
+
+
+def EAR_threshold_calculate(open_EAR, close_EAR):
+    threshold = open_EAR - k * (open_EAR - close_EAR) # k is a constant to choose between 0.7, 0.8
+    return threshold
+
+
+def to_px(landmarks, idx):
+        p = landmarks[idx]
+        return (int(p.x * w), int(p.y * h))
+
+
+def draw_eye(img, landmarks):
+    left_iris = [469, 470, 471, 472]
+    right_iris = [474, 475, 476, 477]
+
+    for i in range(4):
+        img = cv.line(img, to_px(landmarks, left_iris[i]), to_px(landmarks, left_iris[(i+1) % 4]), red, 1)
+        img = cv.line(img, to_px(landmarks, right_iris[i]), to_px(landmarks, right_iris[(i+1) % 4]), red, 1)
+
+    cv.putText(img, "eye_1", (to_px(landmarks, left_iris[1])[0]-10, to_px(landmarks, left_iris[1])[1]-5), cv.FONT_HERSHEY_SIMPLEX, 0.4, red, 2)
+    cv.putText(img, "eye_2", (to_px(landmarks, right_iris[1])[0]-10, to_px(landmarks, right_iris[1])[1]-5), cv.FONT_HERSHEY_SIMPLEX, 0.4, red, 2)
+
+    return img
+
+
+def eye_aspect_ratio(p1, p2, p3, p4, p5, p6):
+    return (math.dist(list(p2), list(p6))+(math.dist(list(p3), list(p5))))/(2 * math.dist(list(p1), list(p4)))
+
+
+# Frame decomposition from a video feed
+# Open webcam, the 0 one is the main by default
+cap = cv.VideoCapture(0, cv.CAP_DSHOW)
+
+if not cap.isOpened():
+    print("Cannot open camera")
+    exit()
+
+start_time, calib_start = time.time(), time.time()
+
+
+while running:
+    screen.fill(BACKGROUND)
+    if FIRST_QUESTION:
+        pygame.draw.rect(screen, CARD_BACKGROUND, main_card, border_radius=22)
+        pygame.draw.rect(screen, BORDER, main_card, width=1, border_radius=5)
+
+        eye_center = (332, 84)
+        pygame.draw.ellipse(screen, CYAN, (320, 76, 24, 16), width=2)
+        pygame.draw.circle(screen, CYAN, eye_center, 4, width=2)
+
+        title = font_title.render("EyeDash", True, WHITE)
+        title_rect = title.get_rect(midleft=(356, 84))
+        screen.blit(title, title_rect)
+
+        subtitle = font_subtitle.render("Geometry Dash × Eye Blink Control", True, GREY)
+        subtitle_rect = subtitle.get_rect(center=(405, 116))
+        screen.blit(subtitle, subtitle_rect)
+
+        circle_center = (200, 205)
+        pygame.draw.circle(screen, CYAN, circle_center, 35, width=2)
+        pygame.draw.circle(screen, (14, 60, 80), circle_center, 33, width=26)
+        pygame.draw.circle(screen, CYAN, circle_center, 7, width=2)
+        pygame.draw.circle(screen, (0, 0, 0), circle_center, 5)
+
+        mouse_pos = pygame.mouse.get_pos()
+        button_active_calibrating = button_calibrating.collidepoint(mouse_pos)
+
+        if button_active_calibrating:
+            button_colour_calibrating = CYAN_HOVER
+            text_colour_calibrating = DARK
+        else:
+            button_colour_calibrating = CYAN
+            text_colour_calibrating = DARK
+
+        pygame.draw.rect(screen, button_colour_calibrating, button_calibrating, border_radius=15)
+
+        text_callibration_yes = font_button.render("YES, CALIBRATE", True, text_colour_calibrating)
+        text_callibration_yes_rect = text_callibration_yes.get_rect(center=button_calibrating.center)
+        screen.blit(text_callibration_yes, text_callibration_yes_rect)
+
+        button_active_not_calibrating = button_not_calibrating.collidepoint(mouse_pos)
+
+        if button_active_not_calibrating:
+            button_colour_not_calibrating = (25, 22, 45)
+        else:
+            button_colour_not_calibrating = BACKGROUND
+
+        pygame.draw.rect(screen, button_colour_not_calibrating, button_not_calibrating, border_radius=15)
+        pygame.draw.rect(screen, CYAN, button_not_calibrating, width=2, border_radius=15)
+
+        text_callibration_no = font_button.render("NO, PLAY DIRECTLY", True, CYAN)
+        text_callibration_no_rect = text_callibration_no.get_rect(center=button_not_calibrating.center)
+        screen.blit(text_callibration_no, text_callibration_no_rect)
+
+        question = font_question.render("Would you like to calibrate your EAR?", True, WHITE)
+        question_rect = question.get_rect(topleft=(50, 265))
+        screen.blit(question, question_rect)
+
+        description_1 = font_description.render("The Eye Aspect Ratio (EAR) measures the", True, GREY)
+        description_2 = font_description.render("degree of eye openness to automatically detect blinks.", True, GREY)
+        screen.blit(description_1, description_1.get_rect(topleft=(84, 298)))
+        screen.blit(description_2, description_2.get_rect(topleft=(50, 316)))
+
+        
+    else:
+        # Capture frame-by-frame
+        # ret is a boolean value that returns true if the frame is available and frame is the image
+        ret, frame = cap.read()
+
+        if not ret:
+            print("Can't receive frame. Exiting...")
+            break
+
+        h, w = frame.shape[:2]
+
+        frame_rgb = cv.cvtColor(frame, cv.COLOR_BGR2RGB)
+        mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=frame_rgb)
+
+        timestamp_ms = int((time.time() - start_time) * 1000)
+        result = landmarker.detect_for_video(mp_image, timestamp_ms)
+
+        if APP_STATE == "CALIBRATING":
+            if result.face_landmarks:
+                r = result.face_landmarks[0]
+                frame = draw_eye(frame, r)
+
+                EAR_1 = eye_aspect_ratio(to_px(r, 33), to_px(r, 160), to_px(r, 158), to_px(r, 133), to_px(r, 153), to_px(r, 144))
+                EAR_2 = eye_aspect_ratio(to_px(r, 263), to_px(r, 385), to_px(r, 387), to_px(r, 362), to_px(r, 373), to_px(r, 380))
+                if CALIB_PHASE == "OPEN":
+                    open_sample1.append(EAR_1)
+                    open_sample2.append(EAR_2)
+
+                    remaining = CALIBRATING_DURATION - (time.time() - calib_start)
+                    remaining = max(0, round(remaining, 1))
+
+                    text_1 = font.render(f"Keep your eyes open during {remaining} s.", True, (0,0,255), (0,255,0))
+                    textRect_1 = text_1.get_rect()
+                    textRect_1.center = (300 , 300)
+                    screen.blit(text_1, textRect_1)
+                    # cv.putText(frame, f"Keep your eyes open during {remaining} s.", (30, 30), cv.FONT_HERSHEY_SIMPLEX, 0.7, red, 2)
+
+                    if remaining <= 0:
+                        CALIB_PHASE = "CLOSE"
+                        calib_start = time.time()
+
+                        if len(open_sample1) == 0 or len(open_sample2) == 0:
+                            print("Calibration has failed, there is no face detected. Restart the program !")
+                            exit()
+
+                        average_open_EAR_1 = sum(open_sample1) / len(open_sample1)
+                        average_open_EAR_2 = sum(open_sample2) / len(open_sample2)
+
+                else:
+                    if EAR_1 <= 0.15: close_sample1.append(EAR_1)
+                    if EAR_2 <= 0.15: close_sample2.append(EAR_2)
+
+                    remaining = CALIBRATING_DURATION - (time.time() - calib_start)
+                    remaining = max(0, round(remaining, 1))
+
+                    text_2 = font.render(f"Keep your eyes close during {remaining} s.", True, (0,0,255), (0,255,0))
+                    textRect_2 = text_2.get_rect()
+                    textRect_2.center = (300, 300)  
+                    screen.blit(text_2, textRect_2)
+
+                    # cv.putText(frame, f"Keep your eyes close during {remaining} s.", (30, 30), cv.FONT_HERSHEY_SIMPLEX, 0.7, red, 2)
+
+                    if remaining <= 0:
+                        APP_STATE = "RUNNING"
+
+                        if len(close_sample1) == 0 or len(close_sample2) == 0:
+                            print("Calibration has failed, there is no face detected or both close eyes. Restart the program !")
+                            exit()
+
+                        average_close_EAR_1 = sum(close_sample1) / len(close_sample1)
+                        average_close_EAR_2 = sum(close_sample2) / len(close_sample2)
+
+                        EAR_1_threshold = EAR_threshold_calculate(average_open_EAR_1, average_close_EAR_1)
+                        EAR_2_threshold = EAR_threshold_calculate(average_open_EAR_2, average_close_EAR_2)  
+
+                        print(f"EAR_1_threshold = {EAR_1_threshold}, EAR_2_threshold = {EAR_2_threshold}")
+
+
+        else:
+            # result.face_landmarks is a list of 478 points of detected visage
+            if result.face_landmarks:
+                r = result.face_landmarks[0]
+                frame = draw_eye(frame, r)
+
+                EAR_1 = eye_aspect_ratio(to_px(r, 33), to_px(r, 160), to_px(r, 158), to_px(r, 133), to_px(r, 153), to_px(r, 144))
+                EAR_2 = eye_aspect_ratio(to_px(r, 263), to_px(r, 385), to_px(r, 387), to_px(r, 362), to_px(r, 373), to_px(r, 380))
+
+                closed_1 = EAR_1 < EAR_1_threshold
+                closed_2 = EAR_2 < EAR_2_threshold
+
+                if closed_1 or closed_2:
+                    event_active = True
+                    if closed_1:
+                        frames_closed_1 += 1
+                    if closed_2:
+                        frames_closed_2 += 1
+                else:
+                    if event_active:
+                        total = max(frames_closed_1, frames_closed_2)
+                        if total >= MIN_EVENT_FRAMES:
+                            ratio = min(frames_closed_1, frames_closed_2) / total
+
+                            if ratio > RATIO_THRESHOLD:
+                                dual_blinking += 1
+                            elif frames_closed_1 > frames_closed_2:
+                                if only_eye1_blinking == 1 and (time.time() - time_start_eye1) < 1:
+                                    only_eye1_blinking += 1
+                                    print("Double1")
+                                    only_eye1_blinking = 0
+                                else:
+                                    only_eye1_blinking = 1
+                                time_start_eye1 = time.time()
+                            else:
+                                if only_eye2_blinking == 1 and (time.time() - time_start_eye2) < 1:
+                                    only_eye2_blinking += 1
+                                    print("Double2")
+                                    only_eye2_blinking = 0
+                                else:
+                                    only_eye2_blinking = 1
+                                time_start_eye2 = time.time()
+
+                            # print("dual_blinking =", dual_blinking, ", only_eye1_blinking =", only_eye1_blinking, ", only_eye2_blinking =", only_eye2_blinking)
+
+                    event_active = False
+                    frames_closed_1 = 0
+                    frames_closed_2 = 0
+
+    # cv.imshow("frame", frame)
+    # 
+    # # Press 'q' to quit the result of the camera
+    # if cv.waitKey(1) == ord('q'):
+    #     break
+
+    # Press X on top right of the window to quit the pygame window
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            running = False 
+        elif event.type == pygame.MOUSEBUTTONDOWN:
+            if event.button == 1 and button_calibrating.collidepoint(event.pos):
+                APP_STATE = "CALIBRATING"
+                FIRST_QUESTION = False
+            elif event.button == 1 and button_not_calibrating.collidepoint(event.pos):
+                APP_STATE = "RUNNING"
+                FIRST_QUESTION = False
+
+
+    pygame.display.flip()
+    clock.tick(60) # limits FPS to 60
+
+    
+# Release ressources
+cap.release()
+cv.destroyAllWindows()
+
+pygame.quit()
