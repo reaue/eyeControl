@@ -1,6 +1,6 @@
 # eyeControl
  
-A webcam-based blink detector that tells left-eye, right-eye, and dual blinks apart in real time — Used in a game driven by blinking eyes
+A webcam-based blink detector that tells left-eye, right-eye, and dual blinks apart in real time — Used in a game driven by blinking eyes.
 
 <!-- TODO: add a GIF or screenshot here showing the webcam window with the eye contours and a live blink being detected. This is the single highest-impact thing missing from this README right now — a wall of text with no visual loses most readers in the first few seconds. Screen-record a 5-10 second clip of a blink triggering a console print, convert to GIF (ScreenToGif or ezgif.com works fine), drop it in the repo, and reference it here: -->
 <!-- ![demo](./demo.gif) -->
