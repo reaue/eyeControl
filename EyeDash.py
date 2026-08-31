@@ -120,6 +120,22 @@ def eye_aspect_ratio(p1, p2, p3, p4, p5, p6):
     return (math.dist(list(p2), list(p6))+(math.dist(list(p3), list(p5))))/(2 * math.dist(list(p1), list(p4)))
 
 
+def draw_closed_eye(surface, center):
+    cx, cy = center
+    points = []
+
+    # Create a smooth curve
+    for x in range(-24, 25):
+        y = - 16 * (x / 24) ** 2 + 8
+        points.append((cx + x, cy + y))
+
+    pygame.draw.lines( surface, PINK, False, points, width=3)
+    pygame.draw.line(surface, PINK, (cx - 13, cy + 2), (cx - 18, cy + 12), width=2)
+    pygame.draw.line(surface, PINK, (cx - 5, cy + 7), (cx - 7, cy + 18), width=2)
+    pygame.draw.line(surface, PINK, (cx + 5, cy + 7), (cx + 7, cy + 18), width=2)
+    pygame.draw.line(surface, PINK, (cx + 13, cy + 2), (cx + 18, cy + 12), width=2)
+
+
 # Frame decomposition from a video feed
 # Open webcam, the 0 one is the main by default
 cap = cv.VideoCapture(0, cv.CAP_DSHOW)
@@ -253,7 +269,7 @@ while running:
 
                     pygame.draw.line(screen, CYAN_HOVER, (24, 350), (850, 350), width=5)
 
-                    text_progress = font_description.render("DETECTION IN PRORESS...", True, CYAN)
+                    text_progress = font_description.render("CALIBRATION IN PRORESS...", True, CYAN)
                     screen.blit(text_progress, text_progress.get_rect(topleft=(354, 368)))
 
                     timer_center = (770, 240)
@@ -279,14 +295,47 @@ while running:
                     if EAR_2 <= 0.15: close_sample2.append(EAR_2)
 
                     remaining = CALIBRATING_DURATION - (time.time() - calib_start)
-                    remaining = max(0, round(remaining, 1))
+                    remaining = max(0, round(remaining))
 
-                    text_2 = font.render(f"Keep your eyes close during {remaining} s.", True, (0,0,255), (0,255,0))
-                    textRect_2 = text_2.get_rect()
-                    textRect_2.center = (300, 300)  
-                    screen.blit(text_2, textRect_2)
 
-                    # cv.putText(frame, f"Keep your eyes close during {remaining} s.", (30, 30), cv.FONT_HERSHEY_SIMPLEX, 0.7, red, 2)
+                    eye_center = (332, 84)
+                    pygame.draw.ellipse(screen, CYAN, (320, 76, 24, 16), width=2)
+                    pygame.draw.circle(screen, CYAN, eye_center, 4, width=2)
+
+                    title = font_title.render("EAR Calibration", True, WHITE)
+                    title_rect = title.get_rect(midleft=(356, 84))
+                    screen.blit(title, title_rect)
+            
+                    subtitle = font_subtitle.render("Step 2 of 2", True, GREY)
+                    subtitle_rect = subtitle.get_rect(center=(445, 116))
+                    screen.blit(subtitle, subtitle_rect)
+
+                    description_title = font_question.render("Keep your eyes CLOSE", True, WHITE)
+                    description_title_rect = description_title.get_rect(topleft=(380, 225))
+                    screen.blit(description_title, description_title_rect)
+            
+                    description = font_description.render("during 5 seconds in a row", True, GREY)
+                    screen.blit(description, description.get_rect(topleft=(394, 258)))
+
+                    circle_center = (114, 240)
+                    pygame.draw.circle(screen, PINK, circle_center, 90, width=4)
+                    pygame.draw.circle(screen, PINK, circle_center, 55, width=2)
+                    pygame.draw.circle(screen, (57, 6, 39), circle_center, 53)
+                    draw_closed_eye(screen, circle_center)
+
+
+                    pygame.draw.line(screen, PINK, (24, 350), (850, 350), width=5)
+
+                    text_progress = font_description.render("CALIBRATION IN PRORESS...", True, PINK)
+                    screen.blit(text_progress, text_progress.get_rect(topleft=(354, 368)))
+
+                    timer_center = (770, 240)
+                    pygame.draw.circle(screen, CARD_BACKGROUND, timer_center, 40)
+                    pygame.draw.circle(screen, GREY, timer_center, 42, width=2)
+
+                    text_timer = font_timer.render(f"{remaining}", True, PINK)
+                    screen.blit(text_timer, text_timer.get_rect(topleft=(757, 217)))
+
 
                     if remaining <= 0:
                         APP_STATE = "RUNNING"
