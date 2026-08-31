@@ -396,17 +396,10 @@ while running:
                                     only_eye2_blinking = 1
                                 time_start_eye2 = time.time()
 
-                            # print("dual_blinking =", dual_blinking, ", only_eye1_blinking =", only_eye1_blinking, ", only_eye2_blinking =", only_eye2_blinking)
-
                     event_active = False
                     frames_closed_1 = 0
                     frames_closed_2 = 0
 
-    # cv.imshow("frame", frame)
-    # 
-    # # Press 'q' to quit the result of the camera
-    # if cv.waitKey(1) == ord('q'):
-    #     break
 
     # Press X on top right of the window to quit the pygame window
     for event in pygame.event.get():
