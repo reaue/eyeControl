@@ -14,8 +14,9 @@ FIRST_QUESTION = True
 EAR_1_threshold, EAR_2_threshold = 0.15, 0.15      
 RATIO_THRESHOLD = 0.5     # If the secondary eye still close more than 50% the time of the first -> dual
 MIN_EVENT_FRAMES = 2      # Skip short blinking during only a frame
-red = (0, 0, 255)
 k = 0.75
+score = 0
+GAME_SPEED = 7
 
 event_active = False
 frames_closed_1 = 0
@@ -88,7 +89,7 @@ DARK = (8, 7, 17)
 PINK = (255, 0, 110)
 BORDER = (45, 40, 80)
 
-GROUND_TOP = pygame.Color(CYAN_HOVER)
+GROUND_TOP = pygame.Color(0, 180, 200)
 GROUND_BOTTOM = pygame.Color(0, 0, 0)
 
 # UI rectangles
@@ -96,6 +97,7 @@ GROUND_BOTTOM = pygame.Color(0, 0, 0)
 main_card = pygame.Rect(24, 144, 826, 235)
 button_calibrating = pygame.Rect(392, 172, 221, 52)
 button_not_calibrating = pygame.Rect(621, 172, 221, 52)
+score_rect = pygame.Rect(20, 12, 136, 37)
 
 x_player = 100
 y_player = 252
@@ -127,7 +129,7 @@ class Obstacle():
 
 
 class Spike(Obstacle):
-    def __init__(self, x, y, size, speed=7):
+    def __init__(self, x, y, size, speed=GAME_SPEED):
         super().__init__(x, y, speed)
         self.size = size
 
@@ -149,7 +151,7 @@ class Spike(Obstacle):
 
 
 class Block(Obstacle):
-    def __init__(self, x, y, size, speed=7):
+    def __init__(self, x, y, size, speed=GAME_SPEED):
         super().__init__(x, y, speed)
         self.size =size
         self.rect = pygame.Rect(x, y, size, size)
@@ -225,10 +227,15 @@ class StarBackground():
 
     def _spawn(self, n, spread=False):
         for i in range(n):
-            x = random.randint(SCREEN_WIDTH, 2 * SCREEN_WIDTH) if spread else SCREEN_WIDTH + random.randint(0, 40)
+            if spread:
+                x = random.randint(0, SCREEN_WIDTH)
+            else:
+                x = SCREEN_WIDTH + random.randint(0, 40)
             y = random.randint(0, GROUND_Y - 5)
             star_size = random.randint(1, 3)
-            speed = random.randint(1, 10)
+            speed = round(random.gauss(5, 2))
+            while speed < 1 or speed > 10:
+                speed = round(random.gauss(5, 2))
             colour = random.choice([PINK, CYAN, WHITE, CARD_BACKGROUND])
             self.stars.append([x, y, star_size, speed, colour])
 
@@ -258,20 +265,6 @@ def to_px(landmarks, idx):
         return (int(p.x * w), int(p.y * h))
 
 
-def draw_eye(img, landmarks):
-    left_iris = [469, 470, 471, 472]
-    right_iris = [474, 475, 476, 477]
-
-    for i in range(4):
-        img = cv.line(img, to_px(landmarks, left_iris[i]), to_px(landmarks, left_iris[(i+1) % 4]), red, 1)
-        img = cv.line(img, to_px(landmarks, right_iris[i]), to_px(landmarks, right_iris[(i+1) % 4]), red, 1)
-
-    cv.putText(img, "eye_1", (to_px(landmarks, left_iris[1])[0]-10, to_px(landmarks, left_iris[1])[1]-5), cv.FONT_HERSHEY_SIMPLEX, 0.4, red, 2)
-    cv.putText(img, "eye_2", (to_px(landmarks, right_iris[1])[0]-10, to_px(landmarks, right_iris[1])[1]-5), cv.FONT_HERSHEY_SIMPLEX, 0.4, red, 2)
-
-    return img
-
-
 def eye_aspect_ratio(p1, p2, p3, p4, p5, p6):
     return (math.dist(list(p2), list(p6))+(math.dist(list(p3), list(p5))))/(2 * math.dist(list(p1), list(p4)))
 
@@ -294,8 +287,9 @@ def draw_closed_eye(surface, center):
 
 def draw_ground(display, top=GROUND_TOP, bottom=GROUND_BOTTOM):
     for y in range(0, (431-300), BAND_HEIGHT):
-        colour = top.lerp(bottom, y / 431 * 2)
+        colour = top.lerp(bottom, y / (431 - 300))
         display.fill(colour, (0, y + 300, 874, 431))
+    pygame.draw.line(display, (0, 120, 140), (0, 300), (874, 300), width=4)
 
 
 # Frame decomposition from a video feed
@@ -313,7 +307,7 @@ while running:
     screen.fill(BACKGROUND)
     if FIRST_QUESTION:
         pygame.draw.rect(screen, CARD_BACKGROUND, main_card, border_radius=22)
-        pygame.draw.rect(screen, BORDER, main_card, width=1, border_radius=5)
+        pygame.draw.rect(screen, BORDER, main_card, width=1, border_radius=22)
 
         eye_center = (332, 84)
         pygame.draw.ellipse(screen, CYAN, (320, 76, 24, 16), width=2)
@@ -393,7 +387,6 @@ while running:
         if APP_STATE == "CALIBRATING":
             if result.face_landmarks:
                 r = result.face_landmarks[0]
-                frame = draw_eye(frame, r)
 
                 EAR_1 = eye_aspect_ratio(to_px(r, 33), to_px(r, 160), to_px(r, 158), to_px(r, 133), to_px(r, 153), to_px(r, 144))
                 EAR_2 = eye_aspect_ratio(to_px(r, 263), to_px(r, 385), to_px(r, 387), to_px(r, 362), to_px(r, 373), to_px(r, 380))
@@ -550,15 +543,28 @@ while running:
                             y_player = GROUND_Y - size
                             velocity_y = 0
 
-                player_rect.y = y_player
-                pygame.draw.rect(screen, CYAN, (x_player, y_player, size, size), width=3)
-
-
                 star_generator.udpate()
                 star_generator.draw(screen)
+
+                player_rect.y = y_player
+                pygame.draw.rect(screen, CYAN, (x_player, y_player, size, size), width=3)
                 
                 manager.update()
                 manager.draw(screen)
+
+                score += GAME_SPEED
+                pygame.draw.rect(screen, CARD_BACKGROUND, score_rect, border_radius=15)
+                pygame.draw.rect(screen, BORDER, score_rect, width=1, border_radius=15)
+
+                score_text = font_description.render("SCORE", True, (142, 136, 179))
+                screen.blit(score_text, score_text.get_rect(topleft=(34, 24)))
+
+                score_number_text = font_question.render(f"{round(score, -2)}", True, WHITE)
+                screen.blit(score_number_text, score_number_text.get_rect(center=(120, 31)))
+
+                if score < 2500:
+                    description_text = font_question.render("Blink once with either eye, or press [SPACE] to jump.", True, (142, 136, 179))
+                    screen.blit(description_text, description_text.get_rect(center=(437, 380)))
 
                 if standing_on is None:
                     hit = manager.check_collision(player_rect)
@@ -574,12 +580,12 @@ while running:
                             APP_STATE = "GAME OVER"
 
             else:
+                star_generator.draw(screen)
                 manager.draw(screen)
 
             if APP_STATE != "GAME OVER" and result.face_landmarks:
             # result.face_landmarks is a list of 478 points of detected visage
                 r = result.face_landmarks[0]
-                frame = draw_eye(frame, r)
 
                 EAR_1 = eye_aspect_ratio(to_px(r, 33), to_px(r, 160), to_px(r, 158), to_px(r, 133), to_px(r, 153), to_px(r, 144))
                 EAR_2 = eye_aspect_ratio(to_px(r, 263), to_px(r, 385), to_px(r, 387), to_px(r, 362), to_px(r, 373), to_px(r, 380))
@@ -623,7 +629,10 @@ while running:
                 screen.blit(text_GO, text_GO.get_rect(center=(437, 190)))
 
                 text_restart = font_question.render("Press R to restart", True, WHITE)
-                screen.blit(text_restart, text_restart.get_rect(center=(437, 240)))
+                screen.blit(text_restart, text_restart.get_rect(center=(437, 350)))
+
+                text_score_mort = font.render(f"SCORE : {score}", True, (142, 136, 179))
+                screen.blit(text_score_mort, text_score_mort.get_rect(center=(437, 220)))
 
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
@@ -647,6 +656,7 @@ while running:
                 standing_on = None
                 manager.reset()
                 APP_STATE = "RUNNING"
+                score = 0
 
     pygame.display.flip()
     clock.tick(60) # limits FPS to 60
