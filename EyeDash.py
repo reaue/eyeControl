@@ -329,6 +329,8 @@ if not cap.isOpened():
 manager = ObstacleManager(SCREEN_WIDTH, GROUND_Y, size)
 star_generator = StarBackground()
 
+frame_number = 0
+
 while running:
     screen.fill(BACKGROUND)
     if FIRST_QUESTION:
@@ -402,6 +404,7 @@ while running:
             print("Can't receive frame. Exiting...")
             break
 
+        cv.imshow("cam", frame)
         h, w = frame.shape[:2]
 
         frame_rgb = cv.cvtColor(frame, cv.COLOR_BGR2RGB)
@@ -416,6 +419,12 @@ while running:
 
                 EAR_1 = eye_aspect_ratio(to_px(r, 33), to_px(r, 160), to_px(r, 158), to_px(r, 133), to_px(r, 153), to_px(r, 144))
                 EAR_2 = eye_aspect_ratio(to_px(r, 263), to_px(r, 385), to_px(r, 387), to_px(r, 362), to_px(r, 373), to_px(r, 380))
+
+                if frame_number % 10 == 0:
+                    print(f"EAR_1 = {EAR_1}, EAR_2 = {EAR_2}")
+
+                frame_number += 1
+
                 if CALIB_PHASE == "OPEN":
                     open_sample1.append(EAR_1)
                     open_sample2.append(EAR_2)
@@ -637,12 +646,15 @@ while running:
 
                             if ratio > RATIO_THRESHOLD:
                                 dual_blinking += 1
+                                print("dual_blinking")
                             elif frames_closed_1 > frames_closed_2:
                                 only_eye1_blinking += 1
+                                print("only_eye1_blinking")
                                 if standing_on or player_rect.y == GROUND_Y - size:
                                     IS_JUMP_TRIGGERED = True
                             else:
                                 only_eye2_blinking += 1
+                                print("only_eye2_blinking")
                                 if standing_on or player_rect.y == GROUND_Y - size:
                                     IS_JUMP_TRIGGERED = True
 

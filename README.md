@@ -7,6 +7,7 @@ A webcam-controlled game inspired by Geometry Dash, where the player uses eye bl
 ## Try it
  
 No hosted demo — this needs a physical webcam, so it runs locally. See Quick start below.
+You can find the video demo on [YouTube](https://www.youtube.com/watch?v=K8VPI4zUYcw).
  
 ## Quick start
  
