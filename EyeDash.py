@@ -147,6 +147,7 @@ class Spike(Obstacle):
     def collides_with(self, player_rect):
         return player_rect.colliderect(self.hitbox_bottom) or player_rect.colliderect(self.hitbox_top)
 
+
 class Block(Obstacle):
     def __init__(self, x, y, size, speed=7):
         super().__init__(x, y, speed)
@@ -215,6 +216,38 @@ class ObstacleManager():
         self.obstacles = []
 
 
+class StarBackground():
+    TARGET_COUNT = 50
+
+    def __init__(self):
+        self.stars = []
+        self._spawn(self.TARGET_COUNT, spread=True)
+
+    def _spawn(self, n, spread=False):
+        for i in range(n):
+            x = random.randint(SCREEN_WIDTH, 2 * SCREEN_WIDTH) if spread else SCREEN_WIDTH + random.randint(0, 40)
+            y = random.randint(0, GROUND_Y - 5)
+            star_size = random.randint(1, 3)
+            speed = random.randint(1, 10)
+            colour = random.choice([PINK, CYAN, WHITE, CARD_BACKGROUND])
+            self.stars.append([x, y, star_size, speed, colour])
+
+    def _maybe_spawn(self):
+        deficit = self.TARGET_COUNT - len(self.stars)
+        if deficit > 0:
+            self._spawn(deficit)
+
+    def udpate(self):
+        for star in self.stars:
+            star[0] -= star[3]
+        self.stars = [s for s in self.stars if s[0] > -10]
+        self._maybe_spawn()
+
+    def draw(self, screen):
+            for x, y, star_size, speed, colour in self.stars:
+                pygame.draw.circle(screen, colour, (int(x), int(y)), star_size)
+            
+
 def EAR_threshold_calculate(open_EAR, close_EAR):
     threshold = open_EAR - k * (open_EAR - close_EAR) # k is a constant to choose between 0.7, 0.8
     return threshold
@@ -274,6 +307,7 @@ if not cap.isOpened():
     exit()
 
 manager = ObstacleManager(SCREEN_WIDTH, GROUND_Y, size)
+star_generator = StarBackground()
 
 while running:
     screen.fill(BACKGROUND)
@@ -519,6 +553,10 @@ while running:
                 player_rect.y = y_player
                 pygame.draw.rect(screen, CYAN, (x_player, y_player, size, size), width=3)
 
+
+                star_generator.udpate()
+                star_generator.draw(screen)
+                
                 manager.update()
                 manager.draw(screen)
 
