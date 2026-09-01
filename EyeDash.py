@@ -16,7 +16,6 @@ RATIO_THRESHOLD = 0.5     # If the secondary eye still close more than 50% the t
 MIN_EVENT_FRAMES = 2      # Skip short blinking during only a frame
 k = 0.75
 score = 0
-GAME_SPEED = 7
 
 event_active = False
 frames_closed_1 = 0
@@ -106,6 +105,7 @@ player_rect = pygame.Rect(x_player, y_player, size, size)
 
 GRAVITY = 1
 JUMP_VELOCITY = -17
+GAME_SPEED = 7
 GROUND_Y = 300
 
 velocity_y = 0
@@ -113,7 +113,7 @@ velocity_y = 0
 IS_JUMP_TRIGGERED = False
 standing_on = None
 
-MIN_GAP = 5 * size
+MIN_GAP = 6 * size
 PATTERN_SPACING = 7 * size
 SCREEN_WIDTH = 874
 
@@ -134,7 +134,7 @@ class Spike(Obstacle):
         self.size = size
 
     def draw(self, screen):
-        points = [(self.x, self.y + self.size), (self.x + self.size, self.y + self.size), (self.x + self.size / 2, self.y)]
+        points = [(self.x, self.y + self.size - 2), (self.x + self.size, self.y + self.size - 2), (self.x + self.size / 2, self.y)]
         pygame.draw.polygon(screen, PINK, points)
         pygame.draw.polygon(screen, WHITE, points, width=3)
 
@@ -169,10 +169,23 @@ class Block(Obstacle):
 
 
 LEVEL_CHUNKS = [
+    [("block", 0, 0), ("block", size, 0), ("block", size * 2, 0), ("spike", size * 3, 0), ("spike", size * 4, 0), ("block", size * 5, 0), ("block", size * 5, size), ("block", size * 6, 0), ("block", size * 6, size), ("block", size * 9, size), ("block", size * 10, size), ("block", size * 11, size)],
     [("spike", 0, 0)],
     [("block", 0, 0), ("block", size, 0), ("block", 2 * size, 0), ("block", 3 * size, 0)],
     [("block", 0, size), ("block", size, size)],
-    [("spike", 0, 0), ("block", 3 * size, 0)]
+    [("spike", 0, 0), ("block", 3 * size, 0)],
+    [("spike", 0, 0), ("spike", size * 4, 0), ("spike", size * 5, 0), ("block", size * 11, 0), ("spike", size * 11, size)],
+    [("block", 0, 0), ("block", size, 0), ("block", size * 2, 0), ("block", size * 5, size), ("block", size * 6, size), ("block", size * 9, size * 2), ("block", size * 10, size * 2), ("block", size * 11, size * 2), ("block", size * 14, size * 2), ("block", size * 15, size * 2), ("block", size * 16, size *2)],
+    [("block", 0, 0), ("block", size, 0), ("spike", size * 3, 0)],
+    [("block", 0, 0), ("spike", size * 2, 0), ("spike", size * 3, 0)],
+    [("block", 0, 0), ("block", size, 0), ("block", size * 6, size), ("block", size * 7, size), ("spike", size * 9, 0)],
+    [("block", 0, 0), ("block", size, 0), ("block", size * 2, 0), ("block", size * 3, 0), ("spike", size * 5, 0), ("block", size * 7, 0)],
+    [("block", 0, 0), ("spike", size * 2, 0), ("spike", size * 3, 0), ("block", size * 6, 0)],
+    [("block", 0, 0), ("block", size, 0), ("block", size * 2, 0), ("block", size * 4, size), ("block", size * 5, size), ("spike", size * 7, 0)],
+    [("block", 0, 0), ("block", size, 0), ("block", size * 2, 0), ("spike", size * 4, 0), ("block", size * 6, size), ("block", size * 7, size)],
+    [("block", 0, 0), ("block", size, 0), ("spike", size * 3, 0), ("block", size * 5, size), ("block", size * 6, size), ("spike", size * 8, 0), ("block", size * 10, 0)],
+    [("block", 0, 0), ("spike", size * 2, 0), ("block", size * 4, 0), ("block", size * 5, 0), ("spike", size * 7, 0), ("spike", size * 8, 0), ("block", size * 9, 0), ("block", size * 10, 0)],
+    [("block", 0, 0), ("block", size, 0), ("spike", size * 3, 0), ("spike", size * 4, 0), ("block", size * 6, size), ("block", size * 7, size), ("spike", size * 9, 0), ("spike", size * 10, 0), ("block", size * 12, 0), ("block", size * 13, 0)]
 ]
 
 
