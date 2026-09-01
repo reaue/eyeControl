@@ -70,6 +70,12 @@ The game includes gravity, jumping, moving obstacles, platforms, collision detec
 - Default (non-calibrated) thresholds are tuned for one specific person and may not generalize.
 - Windows-only webcam backend by default (see note above).
 
+## IA used
+
+- to help me writing the README document
+- find math formula in research document
+- Figma IA to give me inspiration about design
+
 ## Credits
 
 Built with [MediaPipe](https://ai.google.dev/edge/mediapipe) (Google), [OpenCV](https://opencv.org/) and [Pygame](https://www.pygame.org/).
