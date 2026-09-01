@@ -3,6 +3,7 @@ import cv2 as cv
 import time
 import math
 import pygame
+import random
 # MediaPipe tasks provides prebuilt libraries for different languages like Python, Java, ...
 from mediapipe.tasks import python
 # MediaPipe Tasks provides three prebuilt libraries: vision, text and audio
@@ -110,6 +111,10 @@ velocity_y = 0
 IS_JUMP_TRIGGERED = False
 standing_on = None
 
+MIN_GAP = 5 * size
+PATTERN_SPACING = 7 * size
+SCREEN_WIDTH = 874
+
 
 class Obstacle():
     def __init__(self, x, y, speed):
@@ -132,9 +137,15 @@ class Spike(Obstacle):
         pygame.draw.polygon(screen, WHITE, points, width=3)
 
     @property
-    def rect(self):
-        return pygame.Rect(self.x, self.y, self.size, self.size)
+    def hitbox_bottom(self):
+        return pygame.Rect(self.x + self.size * 0.1, self.y + self.size * 0.5, self.size * 0.8, self.size * 0.5)
 
+    @property
+    def hitbox_top(self):
+        return pygame.Rect(self.x + self.size * 0.3, self.y, self.size * 0.4, self.size * 0.5)
+
+    def collides_with(self, player_rect):
+        return player_rect.colliderect(self.hitbox_bottom) or player_rect.colliderect(self.hitbox_top)
 
 class Block(Obstacle):
     def __init__(self, x, y, size, speed=7):
@@ -150,7 +161,58 @@ class Block(Obstacle):
         pygame.draw.rect(screen, PINK, self.rect)
         pygame.draw.rect(screen, WHITE, self.rect, width=3)
 
-obstacles = [Spike(500, GROUND_Y - size, size), Block(800, GROUND_Y - size, size), Block(848, GROUND_Y - size, size), Block(896, GROUND_Y - size, size), Block(944, GROUND_Y - size, size), Block(1088, GROUND_Y - 2 * size, size), Block(1136, GROUND_Y - 2 * size, size)]
+    def collides_with(self, player_rect):
+        return player_rect.colliderect(self.rect)
+
+
+LEVEL_CHUNKS = [
+    [("spike", 0, 0)],
+    [("block", 0, 0), ("block", size, 0), ("block", 2 * size, 0), ("block", 3 * size, 0)],
+    [("block", 0, size), ("block", size, size)],
+    [("spike", 0, 0), ("block", 3 * size, 0)]
+]
+
+
+class ObstacleManager():
+    def __init__(self, screen_width, ground_y, size):
+        self.screen_width = screen_width
+        self.ground_y = ground_y
+        self.size = size
+        self.obstacles = []
+        self.spaw_x = screen_width - MIN_GAP - 1
+
+    def update(self):
+        for obstacle in self.obstacles:
+            obstacle.update()
+        self._cleanup()
+        self._maybe_spawn()
+
+    def draw(self, screen):
+        for obstacle in self.obstacles:
+            obstacle.draw(screen)
+
+    def _cleanup(self):
+        self.obstacles = [o for o in self.obstacles if o.x > -2 * self.size]
+
+    def _maybe_spawn(self):
+        rightmost = max((o.x for o in self.obstacles), default=self.spaw_x)
+        if rightmost < self.screen_width - MIN_GAP:
+            self._spawn_pattern(rightmost + PATTERN_SPACING)
+
+    def _spawn_pattern(self, start_x):
+        pattern = random.choice(LEVEL_CHUNKS)
+        for obstacle_type, dx, dy in pattern:
+            cls = Spike if obstacle_type == "spike" else Block
+            self.obstacles.append(cls(start_x + dx, self.ground_y - dy - self.size, self.size))
+
+    def check_collision(self, player_rect):
+        for obstacle in self.obstacles:
+            if obstacle.collides_with(player_rect):
+                return obstacle
+        return None
+
+    def reset(self):
+        self.obstacles = []
 
 
 def EAR_threshold_calculate(open_EAR, close_EAR):
@@ -211,6 +273,7 @@ if not cap.isOpened():
     print("Cannot open camera")
     exit()
 
+manager = ObstacleManager(SCREEN_WIDTH, GROUND_Y, size)
 
 while running:
     screen.fill(BACKGROUND)
@@ -456,27 +519,24 @@ while running:
                 player_rect.y = y_player
                 pygame.draw.rect(screen, CYAN, (x_player, y_player, size, size), width=3)
 
-                for obstacle in obstacles:
-                    obstacle.update()
-                    obstacle.draw(screen)
+                manager.update()
+                manager.draw(screen)
 
-                    if standing_on is None and player_rect.colliderect(obstacle.rect):
-                        if isinstance(obstacle, Spike):
+                if standing_on is None:
+                    hit = manager.check_collision(player_rect)
+                    if hit is not None:
+                        if isinstance(hit, Spike):
                             APP_STATE = "GAME OVER"
-                        elif velocity_y >= 0 and prev_bottom <= obstacle.rect.top + 4:
-                            y_player = obstacle.rect.top - size
+                        elif velocity_y >= 0 and prev_bottom <= hit.rect.top + 4:
+                            y_player = hit.rect.top - size
                             velocity_y = 0
                             player_rect.y = y_player
-                            standing_on = obstacle
+                            standing_on = hit
                         else:
                             APP_STATE = "GAME OVER"
 
-                obstacles = [o for o in obstacles if o.x > -2 * size]
-
             else:
-                for obstacle in obstacles:
-                    obstacle.draw(screen) 
-
+                manager.draw(screen)
 
             if APP_STATE != "GAME OVER" and result.face_landmarks:
             # result.face_landmarks is a list of 478 points of detected visage
@@ -505,10 +565,12 @@ while running:
                                 dual_blinking += 1
                             elif frames_closed_1 > frames_closed_2:
                                 only_eye1_blinking += 1
-                                IS_JUMP_TRIGGERED = True
+                                if standing_on or player_rect.y == GROUND_Y - size:
+                                    IS_JUMP_TRIGGERED = True
                             else:
                                 only_eye2_blinking += 1
-                                IS_JUMP_TRIGGERED = True
+                                if standing_on or player_rect.y == GROUND_Y - size:
+                                    IS_JUMP_TRIGGERED = True
 
                     event_active = False
                     frames_closed_1 = 0
@@ -525,7 +587,6 @@ while running:
                 text_restart = font_question.render("Press R to restart", True, WHITE)
                 screen.blit(text_restart, text_restart.get_rect(center=(437, 240)))
 
-    # Press X on top right of the window to quit the pygame window
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False 
@@ -546,7 +607,7 @@ while running:
                 velocity_y = 0
                 IS_JUMP_TRIGGERED = False
                 standing_on = None
-                obstacles = [Spike(500, GROUND_Y - size, size), Block(800, GROUND_Y - size, size), Block(848, GROUND_Y - size, size), Block(896, GROUND_Y - size, size), Block(944, GROUND_Y - size, size), Block(1088, GROUND_Y - 2 * size, size), Block(1136, GROUND_Y - 2 * size, size)]
+                manager.reset()
                 APP_STATE = "RUNNING"
 
     pygame.display.flip()
