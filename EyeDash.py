@@ -103,8 +103,8 @@ y_player = 252
 size = 48
 player_rect = pygame.Rect(x_player, y_player, size, size)
 
-GRAVITY = 1
-JUMP_VELOCITY = -17
+GRAVITY = 1.2
+JUMP_VELOCITY = -18
 GAME_SPEED = 7
 GROUND_Y = 300
 
@@ -116,6 +116,9 @@ standing_on = None
 MIN_GAP = 6 * size
 PATTERN_SPACING = 7 * size
 SCREEN_WIDTH = 874
+
+cube_angle = 0
+ROTATION_SPEED = 6
 
 
 class Obstacle():
@@ -303,6 +306,16 @@ def draw_ground(display, top=GROUND_TOP, bottom=GROUND_BOTTOM):
         colour = top.lerp(bottom, y / (431 - 300))
         display.fill(colour, (0, y + 300, 874, 431))
     pygame.draw.line(display, (0, 120, 140), (0, 300), (874, 300), width=4)
+
+
+def draw_cube(scree, x, y, size, angle):
+    cube_surf = pygame.Surface((size, size), pygame.SRCALPHA)
+    pygame.draw.rect(cube_surf, CARD_BACKGROUND, (0, 0, size, size), border_radius=6)
+    pygame.draw.rect(cube_surf, CYAN, (0, 0, size, size), width=3, border_radius=6)
+    pygame.draw.rect(cube_surf, CYAN, (size*0.28, size*0.28, size*0.44, size*0.44), width=2)
+    rotated = pygame.transform.rotate(cube_surf, angle)
+    rect = rotated.get_rect(center=(x + size/2, y + size/2))
+    screen.blit(rotated, rect)
 
 
 # Frame decomposition from a video feed
@@ -560,7 +573,11 @@ while running:
                 star_generator.draw(screen)
 
                 player_rect.y = y_player
-                pygame.draw.rect(screen, CYAN, (x_player, y_player, size, size), width=3)
+
+                airbone = standing_on is None and y_player + size < GROUND_Y
+                cube_angle = (cube_angle - ROTATION_SPEED) % 360 if airbone else 0
+
+                draw_cube(screen, x_player, y_player, size, cube_angle)
                 
                 manager.update()
                 manager.draw(screen)
