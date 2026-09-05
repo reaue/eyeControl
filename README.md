@@ -6,8 +6,7 @@ A webcam-controlled game inspired by Geometry Dash, where the player uses eye bl
 
 ## Try it
  
-No hosted demo — this needs a physical webcam, so it runs locally. See Quick start below.
-You can find the video demo on [YouTube](https://www.youtube.com/watch?v=K8VPI4zUYcw).
+You can find a video presenting all the features here : [YouTube](https://www.youtube.com/watch?v=K8VPI4zUYcw).
  
 ## Quick start
  
@@ -16,7 +15,7 @@ pip install mediapipe opencv-python pygame
 python EyeDash.py
 ```
 
-When the program starts, choose `YES, CALIBRATE` to calibrate the EAR thresholds to your own eyes (10 seconds total: 5s eyes open, 5s eyes closed), or `NO, PLAY DIRECTLY` to use the default thresholds. A webcam is required either way.
+When you start the program, you can choose between two buttons, the first one `YES, CALIBRATE` and the second one `NO, PLAY DIRECTLY`. Calibrate to have a better experience of the program, it's only takes 10 seconds (it's 5 with your both eyes open and then 5 secondes eyes closed). You can choose to play directly, it will use the default thresholds. To try the full experience, a webcam is required but you can play with the space key if you don't have one.
 
 ## Controls
 
@@ -28,12 +27,13 @@ When the program starts, choose `YES, CALIBRATE` to calibrate the EAR thresholds
 
 ## Features
 
-- Real-time blink detection from a live webcam feed using MediaPipe Face Landmarker (478 facial landmarks).
-- Per-eye Eye Aspect Ratio (EAR) computation — detects each eye independently rather than treating "eyes" as one signal.
-- Distinguishes dual blinks (both eyes) from single-eye blinks (left or right only).
-- Optional personal calibration: 5 seconds eyes-open + 5 seconds eyes-closed to compute a threshold tailored to your own eye shape, instead of a fixed value.
-- Pygame-based game with gravity, obstacles, platforms, collision detection and a game-over system.
-- Blink-controlled gameplay — a single-eye blink triggers a jump.
+What I have implemented :
+
+- Blink detection with a high level of precision in real time (with MediaPipe Face Landmarker);
+- A way to distinguish dual blinking vs single eye blinks (left or right);
+- An eye aspect ratio (calculated independently for each eye) to otpimise detection;
+- This eye aspect ratio (EAR) can be calculated at the start of the program for your own eyes;
+- A game inspired by GeometryDash, where you control the player with your blinks (a single-eye blink triggers a jump).
 
 ## Running it locally
 
@@ -51,11 +51,7 @@ python EyeDash.py
 
 ## How it works
 
-Blink detection isn't based on a single global threshold — each eye gets its own EAR value and its own calibrated threshold, computed as `threshold = open_EAR - k * (open_EAR - close_EAR)`, with `k = 0.75`.
-
-During the game, the program counts how many frames each eye stays closed. If both eyes are closed for approximately the same duration, the event is classified as a dual blink. Otherwise, it is classified as a single-eye blink.
-
-Single-eye blinks currently trigger the jump. Dual blinks are detected but have no assigned action yet, leaving room for a richer control scheme based on blink patterns.
+I look at the eye aspect ratio which can be calculated as `threshold = open_EAR - k * (open_EAR - close_EAR)`, where `k` can be adjusted between 0.7 and 0.8. So, when during at least two frames, you close one eye and the other not, the program triggers and jump, I optimize this algorithm with a 50 percent ratio, if you keep your eyes closed during more than 50 % of the longest one it's count like a dual blink.
 
 ## Game
 
@@ -65,16 +61,14 @@ The game includes gravity, jumping, moving obstacles, platforms, collision detec
 
 ## Known limitations
 
-- EAR thresholds are sensitive to lighting and camera angle; recalibrate if detection feels off.
-- Only single-face detection is supported (`num_faces=1`); a second face in frame is ignored.
-- Default (non-calibrated) thresholds are tuned for one specific person and may not generalize.
-- Windows-only webcam backend by default (see note above).
+- I limited the number of face detecting to one for optimization;
+- The angle of your camera can be an issue. Try to put the game screen as close to the camera as possible.
+- When you try to close only one eye, the other follows, it's physiological, try to exaggerate your blink if it happends.  
 
-## IA used
+## AI used
 
-- to help me writing the README document
 - find math formula in research document
-- Figma IA to give me inspiration about design
+- Figma AI to give me inspiration about design
 
 ## Credits
 
