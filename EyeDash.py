@@ -4,6 +4,8 @@ import time
 import math
 import pygame
 import random
+import os
+import sys
 # MediaPipe tasks provides prebuilt libraries for different languages like Python, Java, ...
 from mediapipe.tasks import python
 # MediaPipe Tasks provides three prebuilt libraries: vision, text and audio
@@ -37,7 +39,13 @@ close_sample1 = []
 close_sample2 = []
 
 
-model_path = "face_landmarker.task"
+# Resolve bundled resources correctly when running from source or from PyInstaller.
+def resource_path(filename):
+    if getattr(sys, "frozen", False):
+        return os.path.join(sys._MEIPASS, filename)
+    return os.path.join(os.path.dirname(os.path.abspath(__file__)), filename)
+
+model_path = resource_path("face_landmarker.task")
 
 base_options = python.BaseOptions(model_asset_path=model_path)
 
@@ -59,14 +67,14 @@ pygame.init()
 screen = pygame.display.set_mode((874, 431))
 pygame.display.set_caption("Game Controlled by eyes blinking !")
 
-font = pygame.font.Font('freesansbold.ttf', 16)
-font_title = pygame.font.Font('freesansbold.ttf', 32)
-font_subtitle = pygame.font.Font('freesansbold.ttf', 14)
-font_question = pygame.font.Font('freesansbold.ttf', 18)
-font_description = pygame.font.Font('freesansbold.ttf', 13)
-font_button = pygame.font.Font('freesansbold.ttf', 14)
-font_footer = pygame.font.Font('freesansbold.ttf', 11)
-font_timer = pygame.font.Font('freesansbold.ttf', 48)
+font = pygame.font.Font(resource_path("freesansbold.ttf"), 16)
+font_title = pygame.font.Font(resource_path("freesansbold.ttf"), 32)
+font_subtitle = pygame.font.Font(resource_path("freesansbold.ttf"), 14)
+font_question = pygame.font.Font(resource_path("freesansbold.ttf"), 18)
+font_description = pygame.font.Font(resource_path("freesansbold.ttf"), 13)
+font_button = pygame.font.Font(resource_path("freesansbold.ttf"), 14)
+font_footer = pygame.font.Font(resource_path("freesansbold.ttf"), 11)
+font_timer = pygame.font.Font(resource_path("freesansbold.ttf"), 48)
 
 BAND_HEIGHT = 16
 
