@@ -7,7 +7,12 @@ A webcam-controlled game inspired by Geometry Dash, where the player uses eye bl
 ## Try it
  
 You can find a video presenting all the features here : [YouTube](https://www.youtube.com/watch?v=K8VPI4zUYcw).
- 
+And try it by yourself without touching any python [here](https://github.com/reaue/eyeControl/releases/tag/v1.0.0).
+
+Some warning about the release :
+- **Good lighting is required for smooth play.** In dim light, most webcams automatically lower their frame rate (from 30 fps to 15 fps or less) and the game slows down with them. if you feel some lag try to put a light in front of you, it might fix the lag.
+- EyeDash is a small project and the executable is not code-signed (certificates cost hundreds of euros per year), so Windows SmartScreen does not recognize it. If you get a message from Microsoft Defender SmartScreen, click **More info**, then **Run anyway**. (You can verify the code ofc, because this is an open source project)
+
 ## Quick start
  
 ```bash
