@@ -8,7 +8,8 @@ A webcam-controlled game inspired by Geometry Dash, where the player uses eye bl
  
 You can find a video presenting all the features here : [YouTube](https://www.youtube.com/watch?v=K8VPI4zUYcw).
 
-And try it by yourself without touching any python [here](https://github.com/reaue/eyeControl/releases/tag/v1.0.0).
+And try it by yourself without touching any python [here](https://github.com/reaue/eyeControl/releases/tag/v1.0.0).<br>
+<br>
 
 Some warning about the release :
 - **Good lighting is required for smooth play.** In dim light, most webcams automatically lower their frame rate (from 30 fps to 15 fps or less) and the game slows down with them. if you feel some lag try to put a light in front of you, it might fix the lag.
