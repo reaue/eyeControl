@@ -7,6 +7,7 @@ A webcam-controlled game inspired by Geometry Dash, where the player uses eye bl
 ## Try it
  
 You can find a video presenting all the features here : [YouTube](https://www.youtube.com/watch?v=K8VPI4zUYcw).
+
 And try it by yourself without touching any python [here](https://github.com/reaue/eyeControl/releases/tag/v1.0.0).
 
 Some warning about the release :
